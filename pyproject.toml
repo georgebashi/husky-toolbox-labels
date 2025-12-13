@@ -1,0 +1,18 @@
+[project]
+name = "toolbox-label-generator"
+version = "0.1.0"
+description = "Generate 3D printable labels for toolbox drawers"
+requires-python = ">=3.10"
+dependencies = [
+    "build123d>=0.10.0",
+]
+
+[project.scripts]
+label = "label:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/label_generator"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
