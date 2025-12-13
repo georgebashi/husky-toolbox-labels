@@ -40,6 +40,13 @@ def main():
         default=Path("InterVariable.ttf"),
         help="TTF font file for text (default: InterVariable.ttf)"
     )
+    parser.add_argument(
+        "-f", "--format",
+        type=str,
+        choices=["step", "stl"],
+        default="step",
+        help="Output format: step (single file) or stl (multi-file) (default: step)"
+    )
 
     args = parser.parse_args()
 
@@ -76,11 +83,15 @@ def main():
         print(f"  ✓ Label assembled (volume: {builder.label_body.volume:.0f}mm³)")
 
         exporter = LabelExporter(builder.label_body, builder.text_insert)
-        exporter.export(args.output)
-        print(f"  ✓ Exported to: {args.output}")
+        exporter.export(args.output, format=args.format)
 
-        file_size = args.output.stat().st_size / 1024
-        print(f"\n✓ Label generated successfully ({file_size:.1f} KB)")
+        if args.format == "step":
+            print(f"  ✓ Exported to: {args.output}")
+            file_size = args.output.stat().st_size / 1024
+            print(f"\n✓ Label generated successfully ({file_size:.1f} KB)")
+        else:
+            print(f"\n✓ Label generated successfully ({args.format.upper()} format)")
+
         return 0
 
     except Exception as e:
