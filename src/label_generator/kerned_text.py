@@ -145,7 +145,7 @@ class KernedText:
             if len(shapes) == 0:
                 raise ValueError(f"No shapes imported from SVG for text: {self.text}")
 
-            # Create a compound from all imported shapes
+            # Create a compound from all imported shapes and union them
             from build123d import Face, Wire
             faces = []
             for shape in shapes:
@@ -157,14 +157,27 @@ class KernedText:
             if not faces:
                 raise ValueError(f"No valid faces created from SVG for text: {self.text}")
 
-            compound = Compound(faces) if len(faces) > 1 else faces[0]
+            # Union all faces together instead of just making a compound
+            # This ensures overlapping strokes are properly combined
+            if len(faces) == 1:
+                result = faces[0]
+            else:
+                # Use the + operator to union all faces
+                result = faces[0]
+                for face in faces[1:]:
+                    result = result + face
+
+            # Handle case where union returns ShapeList
+            from build123d import ShapeList
+            if isinstance(result, ShapeList):
+                result = Compound(list(result))
 
             # Center the text at origin
-            bbox = compound.bounding_box()
+            bbox = result.bounding_box()
             center_x = (bbox.min.X + bbox.max.X) / 2
             center_y = (bbox.min.Y + bbox.max.Y) / 2
 
-            centered = compound.translate((-center_x, -center_y, 0))
+            centered = result.translate((-center_x, -center_y, 0))
 
             return centered
         finally:
