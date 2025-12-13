@@ -88,44 +88,26 @@ class KernedText:
         shaped_glyphs = self.shape_text()
         scale_factor = self.font_size / self.units_per_em
 
-        # Create SVG path data for all glyphs, with each contour as a separate path
+        # Create SVG path data - one path per glyph with all contours
         svg_paths = []
 
         for glyph_name, x_pos, y_pos in shaped_glyphs:
             if glyph_name == '.notdef':
                 continue
 
-            # Use a custom pen to extract separate contours
-            from fontTools.pens.recordingPen import RecordingPen
-            rec_pen = RecordingPen()
-            self.glyph_set[glyph_name].draw(rec_pen)
+            # Create single path with all contours for this glyph
+            pen = SVGPathPen(self.glyph_set)
+            self.glyph_set[glyph_name].draw(pen)
 
-            # Split recording into separate contours (each moveTo...closePath sequence)
-            contours = self._split_contours(rec_pen.value)
+            path_data = pen.getCommands()
+            if not path_data:
+                continue
 
-            for contour in contours:
-                # Convert each contour to SVG path by manually replaying commands
-                svg_pen = SVGPathPen(self.glyph_set)
-
-                for cmd, args in contour:
-                    if cmd == 'moveTo':
-                        svg_pen.moveTo(args[0])
-                    elif cmd == 'lineTo':
-                        svg_pen.lineTo(args[0])
-                    elif cmd == 'curveTo':
-                        svg_pen.curveTo(*args)
-                    elif cmd == 'qCurveTo':
-                        svg_pen.qCurveTo(*args)
-                    elif cmd == 'closePath':
-                        svg_pen.closePath()
-
-                path_data = svg_pen.getCommands()
-                if path_data:
-                    svg_paths.append({
-                        'path': path_data,
-                        'x': x_pos * scale_factor,
-                        'y': y_pos * scale_factor
-                    })
+            svg_paths.append({
+                'path': path_data,
+                'x': x_pos * scale_factor,
+                'y': y_pos * scale_factor
+            })
 
         if not svg_paths:
             raise ValueError(f"No glyphs could be rendered for text: {self.text}")
@@ -145,32 +127,40 @@ class KernedText:
             if len(shapes) == 0:
                 raise ValueError(f"No shapes imported from SVG for text: {self.text}")
 
-            # Create a compound from all imported shapes and union them
-            from build123d import Face, Wire
+            # SVG imports as Face with multiple wires
+            # Convert multi-wire faces to properly unioned geometry
+            from build123d import Face, Wire, make_face
             faces = []
+
             for shape in shapes:
                 if isinstance(shape, Wire):
                     faces.append(Face(shape))
                 elif isinstance(shape, Face):
-                    faces.append(shape)
+                    # If face has multiple wires, they represent separate contours
+                    # that need to be unioned together
+                    wires = shape.wires()
+                    if len(wires) > 1:
+                        # Create separate faces from each wire and union them
+                        wire_faces = []
+                        for wire in wires:
+                            try:
+                                wire_faces.append(make_face(wire))
+                            except:
+                                continue
+
+                        if wire_faces:
+                            # Union all wire faces together
+                            unioned = wire_faces[0]
+                            for wf in wire_faces[1:]:
+                                unioned = unioned + wf
+                            faces.append(unioned)
+                    else:
+                        faces.append(shape)
 
             if not faces:
                 raise ValueError(f"No valid faces created from SVG for text: {self.text}")
 
-            # Union all faces together instead of just making a compound
-            # This ensures overlapping strokes are properly combined
-            if len(faces) == 1:
-                result = faces[0]
-            else:
-                # Use the + operator to union all faces
-                result = faces[0]
-                for face in faces[1:]:
-                    result = result + face
-
-            # Handle case where union returns ShapeList
-            from build123d import ShapeList
-            if isinstance(result, ShapeList):
-                result = Compound(list(result))
+            result = Compound(faces) if len(faces) > 1 else faces[0]
 
             # Center the text at origin
             bbox = result.bounding_box()
@@ -187,32 +177,6 @@ class KernedText:
                 os.unlink(svg_path)
             except:
                 pass
-
-    def _split_contours(self, recording: list) -> list:
-        """
-        Split a recording into separate contour sequences.
-
-        Each contour is a moveTo...closePath sequence.
-
-        Args:
-            recording: RecordingPen value
-
-        Returns:
-            List of contour recordings
-        """
-        contours = []
-        current = []
-
-        for cmd, args in recording:
-            current.append((cmd, args))
-            if cmd == 'closePath':
-                contours.append(current)
-                current = []
-
-        if current:  # Handle unclosed paths
-            contours.append(current)
-
-        return contours
 
     def _create_svg(self, svg_paths: list, scale_factor: float) -> str:
         """
@@ -234,7 +198,8 @@ class KernedText:
             # Note: SVG Y-axis points down, font Y-axis points up
             # We flip Y by using negative scale
             transform = f"translate({glyph['x']:.3f}, {glyph['y']:.3f}) scale({scale_factor:.6f}, {-scale_factor:.6f})"
-            paths_svg.append(f'  <path d="{glyph["path"]}" transform="{transform}" fill="black"/>')
+            # Use fill-rule="nonzero" which is standard for TrueType fonts
+            paths_svg.append(f'  <path d="{glyph["path"]}" transform="{transform}" fill="black" fill-rule="nonzero"/>')
 
         svg = f'''<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1">
