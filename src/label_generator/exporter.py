@@ -33,8 +33,8 @@ class LabelExporter:
         self.label_body.label = "label_body"
         self.text_insert.label = "text_insert"
 
-        self.label_body.color = Color("gray")
-        self.text_insert.color = Color("white")
+        self.label_body.color = Color(0.2, 0.2, 0.2)
+        self.text_insert.color = Color(1.0, 1.0, 1.0)
 
         assembly = Compound(
             label="toolbox_label",
