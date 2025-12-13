@@ -101,12 +101,17 @@ class LabelBuilder:
 
         rotated_text = self.text_geometry.rotate(Axis.Z, 90)
 
+        cleaned_text = rotated_text.clean().fix()
+
+        text_faces = cleaned_text.faces()
+
         extrude_depth = -(self.text_depth + 0.1)
 
         with BuildPart() as part:
             add(self.label_body)
             with BuildSketch(sketch_plane):
-                add(rotated_text)
+                for face in text_faces:
+                    add(face.fix())
             extrude(amount=extrude_depth, mode=Mode.SUBTRACT)
 
         self.label_body = part.part
@@ -128,9 +133,14 @@ class LabelBuilder:
 
         rotated_text = self.text_geometry.rotate(Axis.Z, 90)
 
+        cleaned_text = rotated_text.clean().fix()
+
+        text_faces = cleaned_text.faces()
+
         with BuildPart() as insert:
             with BuildSketch(sketch_plane):
-                add(rotated_text)
+                for face in text_faces:
+                    add(face.fix())
             extrude(amount=-self.text_depth)
 
         self.text_insert = insert.part
