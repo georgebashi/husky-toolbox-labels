@@ -11,7 +11,6 @@ from fontTools.ttLib import TTFont
 from fontTools.pens.svgPathPen import SVGPathPen
 from build123d import import_svg, Compound
 from typing import List, Tuple
-import tempfile
 
 
 class KernedText:
@@ -115,68 +114,60 @@ class KernedText:
         # Create SVG file with all glyph paths
         svg_content = self._create_svg(svg_paths, scale_factor)
 
-        # Write to temporary file and import
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.svg', delete=False) as f:
+        # Save to debug file and import
+        svg_path = 'debug_text.svg'
+        with open(svg_path, 'w') as f:
             f.write(svg_content)
-            svg_path = f.name
 
-        try:
-            # Import SVG using build123d
-            shapes = import_svg(svg_path)
+        # Import SVG using build123d
+        shapes = import_svg(svg_path)
 
-            if len(shapes) == 0:
-                raise ValueError(f"No shapes imported from SVG for text: {self.text}")
+        if len(shapes) == 0:
+            raise ValueError(f"No shapes imported from SVG for text: {self.text}")
 
-            # SVG imports as Face with multiple wires
-            # Convert multi-wire faces to properly unioned geometry
-            from build123d import Face, Wire, make_face
-            faces = []
+        # SVG imports as Face with multiple wires
+        # Convert multi-wire faces to properly unioned geometry
+        from build123d import Face, Wire, make_face
+        faces = []
 
-            for shape in shapes:
-                if isinstance(shape, Wire):
-                    faces.append(Face(shape))
-                elif isinstance(shape, Face):
-                    # If face has multiple wires, they represent separate contours
-                    # that need to be unioned together
-                    wires = shape.wires()
-                    if len(wires) > 1:
-                        # Create separate faces from each wire and union them
-                        wire_faces = []
-                        for wire in wires:
-                            try:
-                                wire_faces.append(make_face(wire))
-                            except:
-                                continue
+        for shape in shapes:
+            if isinstance(shape, Wire):
+                faces.append(Face(shape))
+            elif isinstance(shape, Face):
+                # If face has multiple wires, they represent separate contours
+                # that need to be unioned together
+                wires = shape.wires()
+                if len(wires) > 1:
+                    # Create separate faces from each wire and union them
+                    wire_faces = []
+                    for wire in wires:
+                        try:
+                            wire_faces.append(make_face(wire))
+                        except:
+                            continue
 
-                        if wire_faces:
-                            # Union all wire faces together
-                            unioned = wire_faces[0]
-                            for wf in wire_faces[1:]:
-                                unioned = unioned + wf
-                            faces.append(unioned)
-                    else:
-                        faces.append(shape)
+                    if wire_faces:
+                        # Union all wire faces together
+                        unioned = wire_faces[0]
+                        for wf in wire_faces[1:]:
+                            unioned = unioned + wf
+                        faces.append(unioned)
+                else:
+                    faces.append(shape)
 
-            if not faces:
-                raise ValueError(f"No valid faces created from SVG for text: {self.text}")
+        if not faces:
+            raise ValueError(f"No valid faces created from SVG for text: {self.text}")
 
-            result = Compound(faces) if len(faces) > 1 else faces[0]
+        result = Compound(faces) if len(faces) > 1 else faces[0]
 
-            # Center the text at origin
-            bbox = result.bounding_box()
-            center_x = (bbox.min.X + bbox.max.X) / 2
-            center_y = (bbox.min.Y + bbox.max.Y) / 2
+        # Center the text at origin
+        bbox = result.bounding_box()
+        center_x = (bbox.min.X + bbox.max.X) / 2
+        center_y = (bbox.min.Y + bbox.max.Y) / 2
 
-            centered = result.translate((-center_x, -center_y, 0))
+        centered = result.translate((-center_x, -center_y, 0))
 
-            return centered
-        finally:
-            # Clean up temp file
-            import os
-            try:
-                os.unlink(svg_path)
-            except:
-                pass
+        return centered
 
     def _create_svg(self, svg_paths: list, scale_factor: float) -> str:
         """
