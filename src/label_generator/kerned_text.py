@@ -79,48 +79,40 @@ class KernedText:
 
     def create_geometry(self) -> Compound:
         """
-        Create build123d geometry from shaped text by rendering to SVG.
+        Create build123d geometry from shaped text by rendering to SVG
+        and using Inkscape to convert text to properly outlined paths.
 
         Returns:
             Compound containing all glyph faces, centered at (0, 0)
         """
-        shaped_glyphs = self.shape_text()
-        scale_factor = self.font_size / self.units_per_em
+        # Create SVG with text element (not paths)
+        svg_content = self._create_text_svg()
 
-        # Create SVG path data - one path per glyph with all contours
-        svg_paths = []
-
-        for glyph_name, x_pos, y_pos in shaped_glyphs:
-            if glyph_name == '.notdef':
-                continue
-
-            # Create single path with all contours for this glyph
-            pen = SVGPathPen(self.glyph_set)
-            self.glyph_set[glyph_name].draw(pen)
-
-            path_data = pen.getCommands()
-            if not path_data:
-                continue
-
-            svg_paths.append({
-                'path': path_data,
-                'x': x_pos * scale_factor,
-                'y': y_pos * scale_factor
-            })
-
-        if not svg_paths:
-            raise ValueError(f"No glyphs could be rendered for text: {self.text}")
-
-        # Create SVG file with all glyph paths
-        svg_content = self._create_svg(svg_paths, scale_factor)
-
-        # Save to debug file and import
-        svg_path = 'debug_text.svg'
-        with open(svg_path, 'w') as f:
+        # Save initial SVG with text
+        text_svg_path = 'debug_text_input.svg'
+        with open(text_svg_path, 'w') as f:
             f.write(svg_content)
 
-        # Import SVG using build123d
-        shapes = import_svg(svg_path)
+        # Use Inkscape to convert text to paths (properly outlined)
+        outlined_svg_path = 'debug_text.svg'
+        import subprocess
+        try:
+            subprocess.run([
+                'inkscape',
+                text_svg_path,
+                '--export-type=svg',
+                '--export-text-to-path',
+                f'--export-filename={outlined_svg_path}'
+            ], check=True, capture_output=True)
+        except (subprocess.CalledProcessError, FileNotFoundError) as e:
+            raise RuntimeError(
+                "Inkscape is required to convert text to outlined paths. "
+                "Please install Inkscape: https://inkscape.org/\n"
+                f"Error: {e}"
+            )
+
+        # Import the outlined SVG
+        shapes = import_svg(outlined_svg_path)
 
         if len(shapes) == 0:
             raise ValueError(f"No shapes imported from SVG for text: {self.text}")
@@ -168,6 +160,33 @@ class KernedText:
         centered = result.translate((-center_x, -center_y, 0))
 
         return centered
+
+    def _create_text_svg(self) -> str:
+        """
+        Create an SVG document with a <text> element.
+
+        This will be converted to outlined paths by Inkscape.
+
+        Returns:
+            SVG document as a string
+        """
+        # Convert font path to absolute path for SVG
+        font_path_abs = self.font_path.absolute()
+
+        svg = f'''<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="200mm" height="50mm" viewBox="0 0 200 50">
+  <defs>
+    <style type="text/css">
+      @font-face {{
+        font-family: 'CustomFont';
+        src: url('file://{font_path_abs}');
+      }}
+    </style>
+  </defs>
+  <text x="10" y="35" font-family="CustomFont" font-size="{self.font_size}" fill="black">{self.text}</text>
+</svg>'''
+
+        return svg
 
     def _create_svg(self, svg_paths: list, scale_factor: float) -> str:
         """
