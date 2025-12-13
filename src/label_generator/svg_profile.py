@@ -53,9 +53,7 @@ class ClipProfile:
         """
         Scale from SVG units to real-world mm and orient in Y-Z plane.
 
-        The SVG viewBox is 119 x 94 units, which maps to:
-        - SVG X (119 units) -> Depth (Z-axis): 37.7mm
-        - SVG Y (94 units) -> Height (Y-axis): 28.86mm
+        Uses uniform scaling based on TARGET_HEIGHT to preserve aspect ratio.
 
         Returns:
             Scaled Face in Y-Z plane ready for extrusion along X
@@ -67,10 +65,13 @@ class ClipProfile:
         current_width = bbox.size.X
         current_height = bbox.size.Y
 
-        scale_x = self.TARGET_DEPTH / current_width
-        scale_y = self.TARGET_HEIGHT / current_height
+        scale_factor = self.TARGET_HEIGHT / current_height
 
-        scaled = scale(self.raw_shape, by=(scale_x, scale_y, 1.0))
+        print(f"SVG scale factor: {scale_factor:.6f}")
+        print(f"  Original: {current_width:.2f} x {current_height:.2f}")
+        print(f"  Scaled: {current_width * scale_factor:.2f} x {current_height * scale_factor:.2f}")
+
+        scaled = scale(self.raw_shape, by=(scale_factor, scale_factor, 1.0))
 
         rotated = scaled.rotate(Axis.Y, 90)
 
