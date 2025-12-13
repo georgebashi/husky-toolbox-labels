@@ -2,15 +2,16 @@
 Text Geometry Creation
 
 This module handles creating 3D text geometry from the label text string
-using the specified font.
+using the specified font with proper kerning via HarfBuzz.
 """
 
 from pathlib import Path
-from build123d import Text, Align, Compound
+from build123d import Compound
+from .kerned_text import KernedText
 
 
 class LabelText:
-    """Creates 3D text geometry for the label."""
+    """Creates 3D text geometry for the label with proper kerning."""
 
     FONT_SIZE = 16.0
     RECESS_DEPTH = 0.8
@@ -31,17 +32,13 @@ class LabelText:
 
     def create_text(self) -> Compound:
         """
-        Generate 2D text geometry.
+        Generate 2D text geometry with proper kerning.
 
         Returns:
             Compound containing the text geometry
         """
-        self.text_geometry = Text(
-            self.text,
-            font_size=self.FONT_SIZE,
-            font_path=str(self.font_path),
-            align=(Align.CENTER, Align.CENTER)
-        )
+        kerned = KernedText(self.text, self.font_path, self.FONT_SIZE)
+        self.text_geometry = kerned.create_geometry()
 
         bbox = self.text_geometry.bounding_box()
         self.text_width = bbox.size.X

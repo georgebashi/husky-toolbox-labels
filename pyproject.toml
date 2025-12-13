@@ -5,6 +5,7 @@ description = "Generate 3D printable labels for toolbox drawers"
 requires-python = ">=3.10"
 dependencies = [
     "build123d>=0.10.0",
+    "uharfbuzz>=0.53.0",
 ]
 
 [project.scripts]
