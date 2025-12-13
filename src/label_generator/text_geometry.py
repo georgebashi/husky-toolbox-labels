@@ -6,13 +6,13 @@ using the specified font.
 """
 
 from pathlib import Path
-from build123d import Text, Align, Compound
+from build123d import Text, Align, Compound, FontStyle
 
 
 class LabelText:
     """Creates 3D text geometry for the label."""
 
-    FONT_SIZE = 12.0
+    FONT_SIZE = 16.0
     RECESS_DEPTH = 0.8
     PADDING = 20.0
 
@@ -40,6 +40,7 @@ class LabelText:
             self.text,
             font_size=self.FONT_SIZE,
             font_path=str(self.font_path),
+            font_style=FontStyle.BOLD,
             align=(Align.CENTER, Align.CENTER)
         )
 
