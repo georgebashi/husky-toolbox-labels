@@ -37,8 +37,8 @@ def main():
     parser.add_argument(
         "--font",
         type=Path,
-        default=Path("InterVariable.ttf"),
-        help="TTF font file for text (default: InterVariable.ttf)"
+        default=Path("Inter-Bold.ttf"),
+        help="TTF font file for text (default: Inter-Bold.ttf)"
     )
     parser.add_argument(
         "-f", "--format",

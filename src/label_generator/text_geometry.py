@@ -6,7 +6,7 @@ using the specified font.
 """
 
 from pathlib import Path
-from build123d import Text, Align, Compound, FontStyle
+from build123d import Text, Align, Compound
 
 
 class LabelText:
@@ -40,7 +40,6 @@ class LabelText:
             self.text,
             font_size=self.FONT_SIZE,
             font_path=str(self.font_path),
-            font_style=FontStyle.BOLD,
             align=(Align.CENTER, Align.CENTER)
         )
 
