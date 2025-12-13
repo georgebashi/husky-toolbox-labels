@@ -141,24 +141,7 @@ class KernedText:
             elif isinstance(shape, Face):
                 # If face has multiple wires, they represent separate contours
                 # that need to be unioned together
-                wires = shape.wires()
-                if len(wires) > 1:
-                    # Create separate faces from each wire and union them
-                    wire_faces = []
-                    for wire in wires:
-                        try:
-                            wire_faces.append(make_face(wire))
-                        except:
-                            continue
-
-                    if wire_faces:
-                        # Union all wire faces together
-                        unioned = wire_faces[0]
-                        for wf in wire_faces[1:]:
-                            unioned = unioned + wf
-                        faces.append(unioned)
-                else:
-                    faces.append(shape)
+                faces.append(shape)
 
         if not faces:
             raise ValueError(f"No valid faces created from SVG for text: {self.text}")
@@ -188,6 +171,7 @@ class KernedText:
             List of shapely Polygon objects
         """
         from shapely.geometry import Polygon
+        from shapely.affinity import scale as shapely_scale
 
         def tessellate_quadratic(p0, p1, p2, segments=10):
             """Tessellate quadratic Bezier curve."""
@@ -306,6 +290,8 @@ class KernedText:
                     # Fix self-intersections and invalid geometry with buffer(0)
                     poly = poly.buffer(0)
                     if poly.is_valid and not poly.is_empty:
+                        # Flip Y coordinates (fonts have Y-up, we need Y-down)
+                        poly = shapely_scale(poly, xfact=1, yfact=-1, origin=(0, 0))
                         polygons.append(poly)
                 except:
                     continue
@@ -334,6 +320,9 @@ class KernedText:
             geoms = []
 
         for poly in geoms:
+            # Combine exterior and interior rings into a single path
+            path_parts = []
+
             # Exterior ring
             coords = list(poly.exterior.coords)
             if coords:
@@ -341,9 +330,9 @@ class KernedText:
                 for x, y in coords[1:]:
                     path_d += f" L {x:.3f} {y:.3f}"
                 path_d += " Z"
-                paths.append(f'  <path d="{path_d}" fill="black"/>')
+                path_parts.append(path_d)
 
-            # Interior rings (holes)
+            # Interior rings (holes) as subpaths
             for interior in poly.interiors:
                 coords = list(interior.coords)
                 if coords:
@@ -351,7 +340,12 @@ class KernedText:
                     for x, y in coords[1:]:
                         path_d += f" L {x:.3f} {y:.3f}"
                     path_d += " Z"
-                    paths.append(f'  <path d="{path_d}" fill="white"/>')
+                    path_parts.append(path_d)
+
+            # Combine all parts into a single path with evenodd fill-rule
+            if path_parts:
+                combined_path = " ".join(path_parts)
+                paths.append(f'  <path d="{combined_path}" fill="black" fill-rule="evenodd"/>')
 
         svg = f'''<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1">
