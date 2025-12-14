@@ -9,6 +9,7 @@ from typing import Optional
 import typer
 from rich import print as rprint
 import re
+from build123d import Face
 
 app = typer.Typer(add_completion=False)
 
@@ -25,8 +26,7 @@ def sanitize_filename(text: str) -> str:
 def generate_single_label(
     text_content: str,
     output_path: Path,
-    profile_path: Path,
-    font_path: Path,
+    profile_face: Face,
     output_format: str
 ) -> bool:
     """
@@ -41,25 +41,13 @@ def generate_single_label(
 
         rprint(f"Generating label: [bold cyan]\"{text_content}\"[/bold cyan]")
 
-        if not profile_path.exists():
-            rprint(f"[bold red]Error:[/bold red] Profile file not found: {profile_path}")
-            return False
-
-        if not font_path.exists():
-            rprint(f"[bold red]Error:[/bold red] Font file not found: {font_path}")
-            return False
-
-        # Load profile
-        profile = ClipProfile(profile_path)
-        profile.load().scale_to_dimensions()
-
         # Create text
-        text_obj = LabelText(text_content, font_path)
+        text_obj = LabelText(text_content)
         text_obj.create_text()
         
         # Build label
         builder = LabelBuilder(
-            profile.scaled_face,
+            profile_face,
             text_obj.text_geometry,
             text_obj.get_label_width()
         )
@@ -90,7 +78,6 @@ def main(
     output: Path = typer.Option(Path("label.step"), "--output", "-o", help="Output file path (for single label mode)"),
     output_dir: Path = typer.Option(Path("labels_out"), "--output-dir", help="Output directory (for batch mode)"),
     profile: Path = typer.Option(Path("cross-section.svg"), help="SVG file with clip cross-section"),
-    font: Path = typer.Option(Path("Inter-Bold.ttf"), help="TTF font file for text"),
     format: str = typer.Option("step", "--format", "-f", help="Output format: step or stl"),
 ):
     """
@@ -99,6 +86,22 @@ def main(
     You can provide a single text argument to generate one label,
     or use --file to generate multiple labels from a text file.
     """
+    from src.label_generator.svg_profile import ClipProfile
+
+    if not profile.exists():
+        rprint(f"[bold red]Error:[/bold red] Profile file not found: {profile}")
+        raise typer.Exit(code=1)
+
+    try:
+        # Load and scale profile once
+        rprint(f"Loading profile from {profile}...")
+        clip_profile = ClipProfile(profile)
+        clip_profile.load().scale_to_dimensions()
+        profile_face = clip_profile.scaled_face
+    except Exception as e:
+        rprint(f"[bold red]Error loading profile:[/bold red] {e}")
+        raise typer.Exit(code=1)
+
     
     if file:
         # Batch mode
@@ -131,14 +134,14 @@ def main(
             ext = "step" if format == "step" else "stl"
             label_output_path = output_dir / f"{safe_name}.{ext}"
             
-            if generate_single_label(line, label_output_path, profile, font, format):
+            if generate_single_label(line, label_output_path, profile_face, format):
                 success_count += 1
         
         rprint(f"\n[bold green]Batch processing complete![/bold green] ({success_count}/{len(lines)} successful)")
         
     elif text:
         # Single label mode
-        if not generate_single_label(text, output, profile, font, format):
+        if not generate_single_label(text, output, profile_face, format):
             raise typer.Exit(code=1)
             
     else:

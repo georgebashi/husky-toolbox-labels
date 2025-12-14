@@ -15,17 +15,15 @@ from typing import List, Tuple
 class KernedText:
     """Renders text by shelling out to Inkscape."""
 
-    def __init__(self, text: str, font_path: Path, font_size: float):
+    def __init__(self, text: str, font_size: float):
         """
         Initialize KernedText.
 
         Args:
             text: The text string to render
-            font_path: Path to the TTF font file
             font_size: Font size in mm
         """
         self.text = text
-        self.font_path = font_path
         self.font_size = font_size
 
     def create_geometry(self) -> Compound:
@@ -86,7 +84,6 @@ class KernedText:
 
     def _create_source_svg(self, path: Path):
         """Write the source SVG with <text> element."""
-        font_path_abs = self.font_path.absolute()
         
         # Use a viewBox that comfortably fits text. 
         # Inkscape will handle the bounds during export usually, but giving it created text is fine.

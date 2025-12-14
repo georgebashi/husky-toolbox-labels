@@ -17,16 +17,14 @@ class LabelText:
     RECESS_DEPTH = 0.8
     PADDING = 20.0
 
-    def __init__(self, text: str, font_path: Path):
+    def __init__(self, text: str):
         """
         Initialize LabelText.
 
         Args:
             text: The text string to render
-            font_path: Path to the TTF font file
         """
         self.text = text
-        self.font_path = font_path
         self.text_geometry = None
         self.text_width = None
 
@@ -37,7 +35,7 @@ class LabelText:
         Returns:
             Compound containing the text geometry
         """
-        kerned = KernedText(self.text, self.font_path, self.FONT_SIZE)
+        kerned = KernedText(self.text, self.FONT_SIZE)
         self.text_geometry = kerned.create_geometry()
 
         bbox = self.text_geometry.bounding_box()

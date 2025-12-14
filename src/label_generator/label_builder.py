@@ -36,6 +36,7 @@ class LabelBuilder:
         self.text_depth = text_depth
         self.label_body = None
         self.text_insert = None
+        self._sketch_plane = None
 
     def build_body(self) -> 'LabelBuilder':
         """
@@ -85,6 +86,19 @@ class LabelBuilder:
         front_face = sorted(candidate_faces, key=lambda f: f.area, reverse=True)[0]
         return front_face
 
+    def _get_sketch_plane(self) -> Plane:
+        """
+        Get or calculate the plane for text placement.
+        Memoizes the result to ensure consistent alignment.
+        """
+        if self._sketch_plane is None:
+            front_face = self.find_front_face()
+            self._sketch_plane = Plane(
+                origin=front_face.center(),
+                z_dir=front_face.normal_at()
+            )
+        return self._sketch_plane
+
     def add_text_recess(self) -> 'LabelBuilder':
         """
         Cut recessed text into front face.
@@ -92,12 +106,7 @@ class LabelBuilder:
         Returns:
             Self for method chaining
         """
-        front_face = self.find_front_face()
-
-        sketch_plane = Plane(
-            origin=front_face.center(),
-            z_dir=front_face.normal_at()
-        )
+        sketch_plane = self._get_sketch_plane()
 
         rotated_text = self.text_geometry.rotate(Axis.Z, 90)
 
@@ -124,12 +133,7 @@ class LabelBuilder:
         Returns:
             Self for method chaining
         """
-        front_face = self.find_front_face()
-
-        sketch_plane = Plane(
-            origin=front_face.center(),
-            z_dir=front_face.normal_at()
-        )
+        sketch_plane = self._get_sketch_plane()
 
         rotated_text = self.text_geometry.rotate(Axis.Z, 90)
 
