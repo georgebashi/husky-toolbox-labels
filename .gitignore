@@ -11,5 +11,19 @@ uv.lock
 # IDE
 .vscode/
 
+# Media
+*.ttf
+*.otf
+*.svg
+!cross-section.svg
+
+# 3D Models
+*.stl
+*.step
+*.stp
+
+# Output
+labels_out/
+
 # OS
 .DS_Store
