@@ -35,18 +35,20 @@ class KernedText:
         Returns:
             Compound containing all glyph faces, centered at (0, 0)
         """
-        # Save debug files to current directory for inspection
-        source_svg = Path("debug_source.svg")
-        outlined_svg = Path("debug_outlined.svg")
+        # Use temporary directory for intermediate files
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            source_svg = tmp_path / "source.svg"
+            outlined_svg = tmp_path / "outlined.svg"
 
-        # 1. Create source SVG with text
-        self._create_source_svg(source_svg)
+            # 1. Create source SVG with text
+            self._create_source_svg(source_svg)
 
-        # 2. Run Inkscape to convert text to paths
-        self._run_inkscape(source_svg, outlined_svg)
+            # 2. Run Inkscape to convert text to paths
+            self._run_inkscape(source_svg, outlined_svg)
 
-        # 3. Import the result
-        shapes = import_svg(str(outlined_svg))
+            # 3. Import the result
+            shapes = import_svg(str(outlined_svg))
 
         if len(shapes) == 0:
             raise ValueError(f"No shapes imported from Inkscape SVG for text: {self.text}")
